@@ -34,4 +34,3 @@ Run the graph decomposition experiments on subgraphs constrcuted from Cora and C
 
 ## Simulations and visualizations
 - All simulations using stochastic block models can be found in ```power_dense_sparse_decomposition.ipynb```
-- Our experiment results and ablation studies can be found in ```Plot_results.ipynb```
