@@ -97,6 +97,7 @@ class SIGN_POWER(nn.Module):
             ff.reset_parameters()
         self.project.reset_parameters()
 
+
 class Semi_POWER(torch.nn.Module):
     def __init__(self, g, num_feat, Ys, K, dropout, rw=False, lap=False, device="cuda:0"):
         """
@@ -118,11 +119,19 @@ class Semi_POWER(torch.nn.Module):
         self.device = device
         self.layers = nn.ModuleList()
         for i in range(K):
-            self.layers.append(nn.Linear(num_feat, num_feat))
+            self.layers.append(nn.Linear(num_feat, num_feat, bias=False)) #BUG: change to NO BIAS
+        #Init weights to be identity matrices
+        self.layers.apply(self._init_weights)
+        #print(self.layers[0].weight.data)
         in_size = [num_feat] * (K + 1)
         num_hidden = [input_size * 2 for input_size in in_size]
         self.classifer = SIGN_POWER(in_size, num_hidden, len(torch.unique(Ys)), num_hops=K+1,
                                     n_layers=2, dropout=self.dropout, input_drop=0, subnet=True, device=device)
+
+    def _init_weights(self, m):
+        if isinstance(m, nn.Linear):
+            num_feat = m.weight.data.shape[0]
+            m.weight.data.copy_(torch.eye(num_feat))
 
     def forward(self, feat):
         feat = torch.tensor(feat, dtype=torch.float, device=self.device)
