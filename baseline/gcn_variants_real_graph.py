@@ -21,6 +21,7 @@ import seaborn as sns
 import copy
 import argparse
 from torch_geometric.nn import MessagePassing, APPNP
+from torch_geometric.nn import GATConv, GCNConv, ChebConv
 import dgl
 from dgl.nn import GCN2Conv
 from torch_geometric.nn.conv.gcn_conv import gcn_norm
@@ -227,6 +228,44 @@ class GPRGNN(torch.nn.Module):
             x = F.dropout(x, p=self.dprate, training=self.training)
             x = self.prop1(x, edge_index)
             return F.log_softmax(x, dim=1)
+
+
+class GCN_Net(torch.nn.Module):
+    def __init__(self, A, num_feat, Ys, dropout=0.1, n_layers=2, device="cuda:0"):
+        super(GCN_Net, self).__init__()
+        self.layers = nn.ModuleList()
+        self.A = A
+        self.Ys = Ys
+        self.num_feat = num_feat
+        self.device = device
+        self.n_layers = n_layers
+
+        if n_layers == 1:
+            self.layers.append(GCNConv(num_feat, len(np.unique(Ys))))
+        else:
+            self.layers.append(GCNConv(num_feat, num_feat * 2))
+            for i in range(n_layers - 2):
+                self.layers.append(GCNConv(num_feat * 2, num_feat * 2))
+            self.layers.append(GCNConv(num_feat * 2, len(np.unique(Ys))))
+
+        if n_layers > 1:
+            self.prelu = nn.PReLU()
+            self.dropout = nn.Dropout(dropout)
+
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        for layer in self.layers:
+            layer.reset_parameters()
+
+    def forward(self, x):
+        edge_index = torch.stack(torch.where(torch.tensor(self.A, dtype=torch.float, device=self.device)))
+        x = torch.tensor(x, dtype=torch.float, device=self.device)
+        for layer_id, layer in enumerate(self.layers):
+            x = layer(x, edge_index)
+            if layer_id < self.n_layers - 1:
+                x = self.dropout(self.prelu(x))
+        return F.log_softmax(x, dim=1)
 
 
 ###BUG: have to perform full batch graph conv, not very scalable compared to unsup-power
