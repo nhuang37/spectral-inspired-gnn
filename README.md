@@ -32,12 +32,6 @@ python power.py --datasets wiki --loop --data_path YOUR_DATA_PATH --result_path 
 ```
 datasets include options with: wiki / planetoid / webkb / amazon / coauthor
 
-## Simulations and visualizations
-- All simulations using stochastic block models can be found in ```power_dense_sparse_decomposition.ipynb```
-- Plotting code:
-  1. Fig 3, 5 ```/ablation study/sbm_boxplot.py```
-  2. Fig 6```/ablation study/sbm_varying_density.py```
-    
 ## Baseline
 Run GCNII and GPR-GNN on the 10 benchmark graphs with the default implementation:
 ```
@@ -46,3 +40,11 @@ python /baseline/gcn_variants_real_graph.py --datasets wiki --loop --model GCNII
 datasets include options with: wiki / planetoid / webkb / amazon / coauthor
 
 models include options with: GCNII / GPRGNN
+
+## Simulations and visualizations
+- Convergence of PowerEmbed
+  - Fig 2: ```power_convergence.ipynb```
+- SBM simulations
+  - Fig 3, 5: ```/ablation study/sbm_boxplot.py```
+  - Fig 6: ```/ablation study/sbm_varying_density.py```
+    
