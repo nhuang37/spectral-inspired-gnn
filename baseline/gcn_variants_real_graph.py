@@ -192,6 +192,7 @@ class GPR_prop(MessagePassing):
                                           self.temp)
 
 
+# ref: https://github.com/jianhao2016/GPRGNN
 class GPRGNN(torch.nn.Module):
     def __init__(self, A, num_feat, Ys, K=10, alpha=0.1, dropout=0.5,
                  Init='Random', Gamma=None, ppnp='GPR_prop', dprate=0.5, device="cuda:0"):
