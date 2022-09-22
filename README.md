@@ -1,6 +1,6 @@
 # Spectral-Inspired Graph Neural Networks
 
-This repo contains implementations of spectral-inspired GNNs, which present a simple layer-wise normalization technique to inject global information in message-passing GNNs, motivated from spectral graph embedding.
+This repo contains implementations of spectral-inspired GNNs, a simple layer-wise normalization technique to inject global information in message-passing GNNs, motivated from spectral graph embedding.
 
 ## Dependencies
 - Python 3.7+
