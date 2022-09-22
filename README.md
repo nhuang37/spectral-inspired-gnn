@@ -32,12 +32,6 @@ Run PowerEmbed on the 10 benchmark graphs with the default implementation:
 ```
 datasets include options with: wiki / planetoid / webkb / amazon / coauthor
 
-## Graph Decomposition
-Run the graph decomposition experiments on subgraphs constrcuted from Cora and CiteSeer:
-```
-!python graph_decomp.py --datasets Cora
-```
-
 ## Simulations and visualizations
 - All simulations using stochastic block models can be found in ```power_dense_sparse_decomposition.ipynb```
 - Plotting code:
