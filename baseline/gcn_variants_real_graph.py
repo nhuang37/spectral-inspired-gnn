@@ -23,7 +23,7 @@ import argparse
 from torch_geometric.nn import MessagePassing, APPNP
 from torch_geometric.nn import GATConv, GCNConv, ChebConv
 import dgl
-from dgl.nn import GCN2Conv
+from dgl.nn import GCN2Conv, JumpingKnowledge
 from torch_geometric.nn.conv.gcn_conv import gcn_norm
 from torch.nn import Parameter
 
@@ -230,6 +230,43 @@ class GPRGNN(torch.nn.Module):
             return F.log_softmax(x, dim=1)
 
 
+class JKNet(nn.Module):
+    def __init__(self, A, num_feat, Ys, n_layers=1, dropout=0.5, device="cuda:0"):
+        super(JKNet, self).__init__()
+        A = torch.tensor(A, dtype=torch.float, device=device)
+        self.A = A
+        edges = torch.where(A == 1)
+        # g = dgl.graph(edges)
+        self.device = device
+        # self.g = g
+        self.num_feat = num_feat
+        self.Ys = Ys
+
+        self.n_layers = n_layers
+        self.layers = nn.ModuleList()
+        for i in range(n_layers):
+            self.layers.append(GCNConv(num_feat, num_feat))
+
+        self.jk = JumpingKnowledge(mode='cat')
+        in_size = num_feat * (n_layers + 1)
+        num_hidden = in_size * 2
+        self.classifier = SIGN_POWER(in_size, num_hidden, len(np.unique(Ys)),
+                                     num_hops=None, n_layers=2, dropout=dropout, input_drop=0, subnet=False,
+                                     device=device)
+        # self.classifier = SIGN_POWER(in_size, num_hidden, len(np.unique(Ys)), num_hops=n_layers + 1,
+        #                             n_layers=2, dropout=dropout, input_drop=0, subnet=True, device=device)
+
+    def forward(self, feat):
+        feat = torch.tensor(feat, dtype=torch.float, device=self.device)
+        edge_index = torch.stack(torch.where(self.A))
+        emb = [feat]
+        for layer in self.layers:
+            feat = layer(feat, edge_index)
+            emb.append(feat)
+        out = self.classifier(self.jk(emb))
+        return out
+
+
 class GCN_Net(torch.nn.Module):
     def __init__(self, A, num_feat, Ys, dropout=0.1, n_layers=2, device="cuda:0"):
         super(GCN_Net, self).__init__()
@@ -333,17 +370,15 @@ def run_gcn_variant(data, model_name, device='cuda:0', eval_every=1, self_loops=
     if self_loops:
         A = A + np.eye(A.shape[0])
 
-    # coauthor:
-    # Xouter = data.x.numpy() @ data.x.numpy().T
-    # print(f'A: {A.shape}, Cov(X): {Xouter.shape}')
-    # evaluesX, evectorsX = eigsh(Xouter, k=k)
-    # feat_X = torch.FloatTensor(evectorsX[:, :k])
-    # feat_X = feat_X.to(device)
-
     num_classes = len(torch.unique(data.y))
     labels = data.y.to(device)
-    # num_feat = k
     num_feat = data.x.shape[1]
+
+    Xouter = data.x.numpy() @ data.x.numpy().T
+    print(f'A: {A.shape}, Cov(X): {Xouter.shape}')
+    evaluesX, evectorsX = eigsh(Xouter, k=k)
+    feat_X = torch.FloatTensor(evectorsX[:, :k])
+    feat_X = feat_X.to(device)
 
     num_epochs = 100
     weight_decay = 0
@@ -364,13 +399,18 @@ def run_gcn_variant(data, model_name, device='cuda:0', eval_every=1, self_loops=
             model = GCNII(A, num_feat, data.y, layer=10, dropout=dropout, device=device)
         elif model_name == "GPRGNN":
             model = GPRGNN(A, num_feat, data.y, K=10, dropout=dropout, device=device)
+        elif model_name == "JKNet":
+            num_feat = k
+            model = JKNet(A, num_feat, data.y, n_layers=10, dropout=dropout, device=device)
         else:
             raise NotImplementedError
         model = model.to(device)
-        best_val, best_test = run_model(model, data.x, labels, train_nid, val_nid, test_nid,
-                                        lr, weight_decay, num_epochs, eval_every, verbose=verbose)
-        # best_val, best_test = run_model(model, feat_X, labels, train_nid, val_nid, test_nid,
-        #                                 lr, weight_decay, num_epochs, eval_every, verbose=verbose)
+        if model_name == "JKNet":  # concatenation will cause OOM --> use top-k eigenvectors of Cov(data.x)
+            best_val, best_test = run_model(model, feat_X, labels, train_nid, val_nid, test_nid,
+                                            lr, weight_decay, num_epochs, eval_every, verbose=verbose)
+        else:
+            best_val, best_test = run_model(model, data.x, labels, train_nid, val_nid, test_nid,
+                                            lr, weight_decay, num_epochs, eval_every, verbose=verbose)
         acc_variant.append(best_test.cpu().numpy())
     return acc_variant
 
@@ -438,9 +478,9 @@ def main(args):
         data = data_all[0]
         if args.datasets in ['amazon', 'coauthor']:  # create 60/20/20 split for 10 runs
             data = train_test_split(data)
-        if args.model == "GCNII" or args.model == "GPRGNN":
+        if args.model == "GCNII" or args.model == "GPRGNN" or args.model == "JKNet":
             results_all[name] = run_gcn_variant(data, args.model, self_loops=args.loop, eval_every=args.eval_every,
-                                                dropout=args.drop_prob, undirected=True, device=device, k=100)
+                                                dropout=args.drop_prob, undirected=True, device=device, k=k)
         else:
             raise NotImplementedError
 
