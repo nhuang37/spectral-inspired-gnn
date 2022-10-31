@@ -33,13 +33,13 @@ python power.py --datasets wiki --loop --data_path YOUR_DATA_PATH --result_path 
 datasets include options with: wiki / planetoid / webkb / amazon / coauthor
 
 ## Baseline
-Run GCNII and GPR-GNN on the 10 benchmark graphs with the default implementation:
+Run GCNII, GPR-GNN and JKNet on the 10 benchmark graphs with the default implementation:
 ```
 python /baseline/gcn_variants_real_graph.py --datasets wiki --loop --model GCNII --data_path YOUR_DATA_PATH --result_path YOUR_RESULT_PATH
 ```
 datasets include options with: wiki / planetoid / webkb / amazon / coauthor
 
-models include options with: GCNII / GPRGNN
+models include options with: GCNII / GPRGNN / JKNet
 
 ## Simulations and visualizations
 - Convergence of PowerEmbed
